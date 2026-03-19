@@ -1,8 +1,10 @@
 package com.taskflow.service;
 
 import com.taskflow.dto.request.ProjectRequest;
+import com.taskflow.dto.request.ProjectUpdateRequest;
 import com.taskflow.dto.response.ProjectResponse;
 import com.taskflow.dto.response.TaskResponse;
+import com.taskflow.exception.BadRequestException;
 import com.taskflow.exception.ResourceNotFoundException;
 import com.taskflow.exception.UnauthorizedException;
 import com.taskflow.model.Project;
@@ -93,6 +95,37 @@ public class ProjectService {
     }
 
     // -------------------------------------------------------
+    // Update
+    // -------------------------------------------------------
+
+    /**
+     * Updates name and/or description of a project.
+     * Partial update — only non-null fields are applied.
+     * Throws BadRequestException if both fields are null (nothing to update).
+     */
+    @Transactional
+    public ProjectResponse updateProject(Long projectId, ProjectUpdateRequest request, User user) {
+        // Validate at least one field is provided
+        if (request.getName() == null && request.getDescription() == null) {
+            throw new BadRequestException("At least one field (name or description) must be provided to update.");
+        }
+
+        Project project = getProjectOwnedByUser(projectId, user);
+
+        if (request.getName() != null) {
+            project.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            project.setDescription(request.getDescription());
+        }
+
+        Project updated = projectRepository.save(project);
+        log.info("Project updated: id={} by user: {}", projectId, user.getEmail());
+
+        return buildProjectResponse(updated);
+    }
+
+    // -------------------------------------------------------
     // Delete
     // -------------------------------------------------------
 
@@ -117,7 +150,6 @@ public class ProjectService {
     public Project getProjectOwnedByUser(Long projectId, User user) {
         return projectRepository.findByIdAndUser(projectId, user)
                 .orElseThrow(() -> {
-                    // Check if project exists at all (404) vs exists but not owned (403)
                     boolean exists = projectRepository.existsById(projectId);
                     if (!exists) {
                         return new ResourceNotFoundException("Project", projectId);

@@ -1,6 +1,7 @@
 package com.taskflow.controller;
 
 import com.taskflow.dto.request.ProjectRequest;
+import com.taskflow.dto.request.ProjectUpdateRequest;
 import com.taskflow.dto.response.ApiResponse;
 import com.taskflow.dto.response.ProjectResponse;
 import com.taskflow.model.User;
@@ -20,9 +21,6 @@ import java.util.List;
 /**
  * Project management endpoints.
  * All endpoints require JWT authentication.
- *
- * Uses @AuthenticationPrincipal to inject the currently logged-in User
- * object directly — clean and avoids manual SecurityContext lookups.
  */
 @RestController
 @RequestMapping("/projects")
@@ -67,7 +65,7 @@ public class ProjectController {
      * Get a single project with its tasks list and progress.
      */
     @GetMapping("/{id}")
-    @Operation(summary = "Get project by ID with tasks")
+    @Operation(summary = "Get project by ID with tasks and progress")
     public ResponseEntity<ApiResponse<ProjectResponse>> getProjectById(
             @PathVariable Long id,
             @AuthenticationPrincipal User user) {
@@ -77,11 +75,27 @@ public class ProjectController {
     }
 
     /**
+     * PUT /projects/{id}
+     * Update project name and/or description.
+     * Partial update — only provided fields are changed.
+     */
+    @PutMapping("/{id}")
+    @Operation(summary = "Update project name or description")
+    public ResponseEntity<ApiResponse<ProjectResponse>> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectUpdateRequest request,
+            @AuthenticationPrincipal User user) {
+
+        ProjectResponse project = projectService.updateProject(id, request, user);
+        return ResponseEntity.ok(ApiResponse.success("Project updated successfully", project));
+    }
+
+    /**
      * DELETE /projects/{id}
      * Delete a project and all its tasks.
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a project")
+    @Operation(summary = "Delete a project and all its tasks")
     public ResponseEntity<ApiResponse<Void>> deleteProject(
             @PathVariable Long id,
             @AuthenticationPrincipal User user) {
