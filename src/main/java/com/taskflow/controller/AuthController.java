@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Authentication endpoints.
- * These endpoints are public (no JWT required — configured in SecurityConfig).
+ *
+ * Day 4 addition:
+ *   POST /auth/register-admin?adminSecret=xxx
+ *   Creates an admin account — only works with correct secret.
  */
 @RestController
 @RequestMapping("/auth")
@@ -27,7 +30,7 @@ public class AuthController {
 
     /**
      * POST /auth/register
-     * Register a new user. Returns JWT token on success.
+     * Register a normal USER account.
      */
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
@@ -41,8 +44,28 @@ public class AuthController {
     }
 
     /**
+     * POST /auth/register-admin?adminSecret=your-secret
+     * Register an ADMIN account.
+     * Requires the admin secret defined in application.properties.
+     *
+     * Example:
+     *   POST /auth/register-admin?adminSecret=taskflow-admin-2024
+     */
+    @PostMapping("/register-admin")
+    @Operation(summary = "Register an admin account (requires admin secret)")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerAdmin(
+            @Valid @RequestBody RegisterRequest request,
+            @RequestParam String adminSecret) {
+
+        AuthResponse authResponse = authService.registerAdmin(request, adminSecret);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Admin registration successful", authResponse));
+    }
+
+    /**
      * POST /auth/login
-     * Login with email/password. Returns JWT token on success.
+     * Login — works for both USER and ADMIN roles.
      */
     @PostMapping("/login")
     @Operation(summary = "Login with email and password")

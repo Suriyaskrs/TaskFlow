@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -14,22 +15,23 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Spring Security configuration.
  *
- * Key decisions:
- *   - CSRF disabled (stateless REST API, no browser sessions)
- *   - Session stateless (JWT handles state — no server-side sessions)
- *   - Public endpoints: /auth/**, /swagger-ui/**, /h2-console/**
- *   - Everything else requires authentication
- *   - JwtFilter runs before Spring's built-in auth filter
+ * Day 4 additions:
+ *   - /admin/** restricted to ROLE_ADMIN only
+ *   - @EnableMethodSecurity enabled for @PreAuthorize support
+ *
+ * Role hierarchy:
+ *   ADMIN → can access /admin/** + all user endpoints
+ *   USER  → can only access their own data
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity          // enables @PreAuthorize on methods
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final AuthenticationProvider authenticationProvider;
 
-    // Endpoints that don't require authentication
     private static final String[] PUBLIC_URLS = {
             "/auth/**",
             "/swagger-ui/**",
@@ -41,27 +43,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Disable CSRF — not needed for stateless REST APIs
             .csrf(AbstractHttpConfigurer::disable)
 
-            // Allow H2 console frames (dev only — blocked by X-Frame-Options by default)
+            // Allow H2 console frames in dev
             .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
 
-            // Authorization rules
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(PUBLIC_URLS).permitAll()
+                    // Admin endpoints — ROLE_ADMIN only
+                    .requestMatchers("/admin/**").hasRole("ADMIN")
+                    // Everything else — any authenticated user
                     .anyRequest().authenticated()
             )
 
-            // Stateless session — no HttpSession created
             .sessionManagement(session -> session
                     .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
 
-            // Use our custom AuthenticationProvider (DaoAuthenticationProvider)
             .authenticationProvider(authenticationProvider)
-
-            // JWT filter runs before Spring's default username/password filter
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

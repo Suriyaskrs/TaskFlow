@@ -2,6 +2,8 @@ package com.taskflow.repository;
 
 import com.taskflow.model.Project;
 import com.taskflow.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,24 +12,21 @@ import java.util.Optional;
 
 /**
  * Repository for Project entity.
+ *
+ * Day 4 additions:
+ *   - findAll(Pageable) for admin paginated project listing
+ *   - countByUser for admin user stats
  */
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
 
-    /**
-     * Get all projects owned by a specific user.
-     * Used in GET /projects — returns only the logged-in user's projects.
-     */
+    // User-scoped queries
     List<Project> findByUser(User user);
 
-    /**
-     * Find a project by id AND user.
-     * Prevents users from accessing or modifying another user's project.
-     */
     Optional<Project> findByIdAndUser(Long id, User user);
 
-    /**
-     * Count projects belonging to a user.
-     */
     long countByUser(User user);
+
+    // Admin queries — no user scope restriction
+    Page<Project> findAll(Pageable pageable);
 }
